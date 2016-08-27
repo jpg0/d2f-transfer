@@ -1,4 +1,4 @@
-package flickr
+package d2f_transfer
 
 import (
 	"io"
@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"errors"
-	"store"
+	//"github.com/jpg0/d2f-transfer/store"
 )
 
 const FLICKR_OAUTH_KEY string = "5845f87d43f2fa6ca0b328272dbf9395"
@@ -78,7 +78,7 @@ func ConfigureFlickr(w http.ResponseWriter, r *http.Request) {
 	//switch delete for write
 	newUrl := url[:len(url) - 6] + "write"
 
-	err = store.Save("flickr", "request_token", requestTok, c)
+	err = Save("flickr", "request_token", requestTok, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -104,7 +104,7 @@ func StoreFlickrConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	verifier := r.URL.Query().Get("oauth_verifier")
 	reqTok := new(flickr.RequestToken)
-	err := store.Load("flickr", "request_token", reqTok, c)
+	err := Load("flickr", "request_token", reqTok, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -120,7 +120,7 @@ func StoreFlickrConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = store.Save("flickr", "access_token", accessToken, c)
+	err = Save("flickr", "access_token", accessToken, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -132,7 +132,7 @@ func StoreFlickrConfiguration(w http.ResponseWriter, r *http.Request) {
 
 func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, readCloser io.ReadCloser, c context.Context) error {
 	access_token := new(flickr.OAuthToken)
-	err := store.Load("flickr", "access_token", access_token, c)
+	err := Load("flickr", "access_token", access_token, c)
 
 	if err != nil {
 		return err

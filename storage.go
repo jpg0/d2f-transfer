@@ -1,4 +1,4 @@
-package store
+package d2f_transfer
 
 import (
 	"google.golang.org/appengine/datastore"
@@ -6,24 +6,29 @@ import (
 	"encoding/json"
 )
 
+type SingleValue struct {
+	Value string
+}
+
 func Save(namespace string, name string, value interface{}, c context.Context) error {
 	key := datastore.NewKey(c, namespace, name, 0, nil)
 	o, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	_, err = datastore.Put(c, key, string(o))
+
+	_, err = datastore.Put(c, key, &SingleValue{Value:string(o)})
 	return err
 }
 
 func Load(namespace string, name string, value interface{}, c context.Context) error {
 	key := datastore.NewKey(c, namespace, name, 0, nil)
-	o := new(string)
+	o := new(SingleValue)
 	err := datastore.Get(c, key, o)
 
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal([]byte(*o), value)
+	return json.Unmarshal([]byte(o.Value), value)
 }

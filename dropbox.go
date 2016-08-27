@@ -1,40 +1,36 @@
-package dropbox
+package d2f_transfer
 
 import (
-//	"io"
 	"net/http"
 	"google.golang.org/appengine"
-	log "google.golang.org/appengine/log"
+	//log "google.golang.org/appengine/log"
 
 	"golang.org/x/net/context"
 
 	"github.com/jpg0/dropbox"
 	"io"
 	"golang.org/x/oauth2"
-//	"encoding/json"
-	"store"
 )
 
 const DROPBOX_OAUTH_KEY string = "b0fx8jxeynzmoqd"
 const DROPBOX_OAUTH_SECRET string = "x4fstmjx1b1yti5"
+const DROPBOX_CALLBACK_HOST string = "https://d2f-transfer.appspot.com"
 
 func NewDropboxClient(c context.Context) (*dropbox.Dropbox, *oauth2.Config) {
 	rv := dropbox.NewDropbox()
 
-	config := &oauth2.Config{
-		ClientID:     DROPBOX_OAUTH_KEY,
-		ClientSecret: DROPBOX_OAUTH_SECRET,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://www.dropbox.com/1/oauth2/authorize",
-			TokenURL: "https://api.dropbox.com/1/oauth2/token",
-		},
-	}
+	rv.SetContext(c)
+	config := &oauth2.Config{}
 
 	rv.SetOAuth2Config(config)
-	rv.SetAppInfo(DROPBOX_OAUTH_KEY, DROPBOX_OAUTH_SECRET)
-	rv.SetContext(c)
 
-	//config.
+	config.ClientID = DROPBOX_OAUTH_KEY
+	config.ClientSecret = DROPBOX_OAUTH_SECRET
+	config.Endpoint = oauth2.Endpoint{
+		AuthURL:  "https://www.dropbox.com/1/oauth2/authorize",
+		TokenURL: "https://api.dropbox.com/1/oauth2/token",
+	}
+	config.RedirectURL = DROPBOX_CALLBACK_HOST  + "/configure/dropbox/callback"
 
 	return rv, config
 }
@@ -42,26 +38,9 @@ func NewDropboxClient(c context.Context) (*dropbox.Dropbox, *oauth2.Config) {
 func ConfigureDropbox(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
-	db, config := NewDropboxClient(c)
+	_, config := NewDropboxClient(c)
 
-	var callback_url string
-	if(r.Host[:9] == "localhost") {
-		callback_url = "https://d2f-transfer.appspot.com" + r.URL.Path + "/callback"
-	} else {
-		callback_url = r.Host + ":/" + r.URL.Path + "/callback"
-	}
-
-	config.RedirectURL = callback_url
-
-	//o, _ := json.Marshal(db.Config)
-
-	log.Infof(c, "config=%v", config)
-	log.Infof(c, "db.config=%v", db.Config)
-
-
-	redirectUrl := db.AuthURL();
-
-	log.Infof(c, "config.RedirectURL=%v", config.RedirectURL)
+	redirectUrl := config.AuthCodeURL("");
 
 	http.Redirect(w, r, redirectUrl, 302)
 }
@@ -80,7 +59,7 @@ func StoreDropboxConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = store.Save("dropbox", "access_token", token, c)
+	err = Save("dropbox", "access_token", token, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -95,7 +74,7 @@ func OpenStreamForFile(title string, c context.Context) (io.ReadCloser, int64, e
 
 
 	token := new(oauth2.Token)
-	err := store.Load("dropbox", "access_token", token, c)
+	err := Load("dropbox", "access_token", token, c)
 
 	if err != nil {
 		return nil, 0, err

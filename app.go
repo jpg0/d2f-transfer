@@ -1,4 +1,4 @@
-package main
+package d2f_transfer
 
 import (
 	"net/http"
@@ -6,13 +6,9 @@ import (
 //	"io"
 //	"os"
 
-//	"google.golang.org/appengine"
-
 	"github.com/gorilla/mux"
-	//"github.com/stacktic/dropbox"
 	"google.golang.org/appengine"
-	"flickr"
-	"dropbox"
+	//"gopkg.in/masci/flickr.v2"
 )
 
 
@@ -22,15 +18,25 @@ type TransferRequest struct {
 	IsPublic, IsFamily, IsFriend bool
 }
 
-
 func init() {
 	r := mux.NewRouter()
 	r.HandleFunc("/transfer", Transfer)
-	r.HandleFunc("/configure/flickr", flickr.ConfigureFlickr)
-	r.HandleFunc("/configure/flickr/callback", flickr.StoreFlickrConfiguration)
-	r.HandleFunc("/configure/dropbox", dropbox.ConfigureDropbox)
-	r.HandleFunc("/configure/dropbox/callback", dropbox.StoreDropboxConfiguration)
+	r.HandleFunc("/configure/flickr", ConfigureFlickr)
+	r.HandleFunc("/configure/flickr/callback", StoreFlickrConfiguration)
+	r.HandleFunc("/configure/dropbox", ConfigureDropbox)
+	r.HandleFunc("/configure/dropbox/callback", StoreDropboxConfiguration)
+	r.HandleFunc("/test", TestStorage)
 	http.Handle("/", r)
+}
+
+func TestStorage(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	err := Save("test_namespace", "test_key", "test_value", c)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func Transfer(w http.ResponseWriter, r *http.Request) {
@@ -41,14 +47,14 @@ func Transfer(w http.ResponseWriter, r *http.Request) {
 
 	json.NewDecoder(r.Body).Decode(transferRequest)
 
-	readCloser, _, err := dropbox.OpenStreamForFile(transferRequest.Title, c)
+	readCloser, _, err := OpenStreamForFile(transferRequest.Title, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	err = flickr.Upload(
+	err = Upload(
 		transferRequest.Title,
 		transferRequest.Tags,
 		transferRequest.IsPublic,
