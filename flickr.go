@@ -8,15 +8,16 @@ import (
 	"google.golang.org/appengine/urlfetch"
 	log "google.golang.org/appengine/log"
 
-	"gopkg.in/masci/flickr.v2"
+	"github.com/jpg0/flickr"
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"errors"
-	//"github.com/jpg0/d2f-transfer/store"
+	"fmt"
 )
 
 const FLICKR_OAUTH_KEY string = "5845f87d43f2fa6ca0b328272dbf9395"
 const FLICKR_OAUTH_SECRET string = "f45c95fe9515ec77"
+const FLICKR_CALLBACK_URL string = "https://d2f-transfer.appspot.com/configure/flickr/callback"
 
 func NewFlickrClient(c context.Context)(*flickr.FlickrClient) {
 	client := flickr.NewFlickrClient(FLICKR_OAUTH_KEY, FLICKR_OAUTH_SECRET)
@@ -55,16 +56,11 @@ func GetRequestTokenWithCallback(client *flickr.FlickrClient, callback string) (
 func ConfigureFlickr(w http.ResponseWriter, r *http.Request) {
 
 	c := appengine.NewContext(r)
+
 	client := NewFlickrClient(c)
 
-	var callback_url string
-	if(r.Host[:9] == "localhost") {
-		callback_url = "https://d2f-transfer.appspot.com" + r.URL.Path + "/callback"
-	} else {
-		callback_url = r.Host + ":/" + r.URL.Path + "/callback"
-	}
 	// first, get a request token
-	requestTok, err := GetRequestTokenWithCallback(client, callback_url)
+	requestTok, err := GetRequestTokenWithCallback(client, FLICKR_CALLBACK_URL)
 
 
 	if err != nil {
@@ -72,7 +68,7 @@ func ConfigureFlickr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// build the authorizatin URL
+	// build the authorization URL
 	url, _ := flickr.GetAuthorizeUrl(client, requestTok)
 
 	//switch delete for write
@@ -127,15 +123,16 @@ func StoreFlickrConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	fmt.Fprint(w, "Flickr Auth Configured")
+	w.WriteHeader(http.StatusOK)
 }
 
-func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, readCloser io.ReadCloser, c context.Context) error {
+func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, readCloser io.ReadCloser, c context.Context) (*flickr.UploadResponse, error) {
 	access_token := new(flickr.OAuthToken)
 	err := Load("flickr", "access_token", access_token, c)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	client := NewFlickrClient(c)
@@ -148,18 +145,18 @@ func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, read
 	params.IsPublic = isPublic
 	params.Tags = tags
 
-	response, err := flickr.UploadReader(client, readCloser, title, params)
+	response, err := flickr.UploadReaderWithClient(client, readCloser, title, params, urlfetch.Client(c))
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if response.HasErrors() {
 		log.Infof(c, "Failed to upload photo %v: %v", title, response)
-		return errors.New(response.ErrorMsg())
+		return nil, errors.New(response.ErrorMsg())
 	} else {
 		log.Infof(c, "Uploaded photo %v %v as %v", title, tags, response.ID)
 	}
 
-	return nil
+	return response, nil
 }

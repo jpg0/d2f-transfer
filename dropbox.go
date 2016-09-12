@@ -10,16 +10,26 @@ import (
 	"github.com/jpg0/dropbox"
 	"io"
 	"golang.org/x/oauth2"
+	"fmt"
+	"time"
+	"errors"
 )
 
 const DROPBOX_OAUTH_KEY string = "b0fx8jxeynzmoqd"
 const DROPBOX_OAUTH_SECRET string = "x4fstmjx1b1yti5"
 const DROPBOX_CALLBACK_HOST string = "https://d2f-transfer.appspot.com"
 
+type Validations struct {
+	Mtime *dropbox.DBTime
+	Size *int64
+}
+
 func NewDropboxClient(c context.Context) (*dropbox.Dropbox, *oauth2.Config) {
 	rv := dropbox.NewDropbox()
 
-	rv.SetContext(c)
+	timeoutCtx, _ := context.WithTimeout(c, 1*time.Minute)
+
+	rv.SetContext(timeoutCtx)
 	config := &oauth2.Config{}
 
 	rv.SetOAuth2Config(config)
@@ -66,10 +76,11 @@ func StoreDropboxConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	fmt.Fprint(w, "Dropbox Auth Configured")
+	w.WriteHeader(http.StatusOK)
 }
 
-func OpenStreamForFile(title string, c context.Context) (io.ReadCloser, int64, error) {
+func OpenStreamForFile(title string, validations *Validations, c context.Context) (io.ReadCloser, int64, error) {
 	db, _ := NewDropboxClient(c)
 
 
@@ -81,5 +92,25 @@ func OpenStreamForFile(title string, c context.Context) (io.ReadCloser, int64, e
 	}
 
 	db.SetAccessToken(token.AccessToken)
+
+	if validations != nil { //we need to validate something
+		entry, err := db.Metadata(title, false, false, "", "", 0)
+
+		if err != nil {
+			return nil, 0, err
+		}
+
+		requestedTime := time.Time(*validations.Mtime).UTC()
+		expectedTime := time.Time(entry.ClientMtime).UTC()
+
+		if validations.Mtime != nil && !requestedTime.Equal(expectedTime) {
+			return nil, 0, errors.New(fmt.Sprintf("Mtime mismatch: requested %v, actual %v: difference: %v", requestedTime, expectedTime, expectedTime.Sub(requestedTime)))
+		}
+
+		if validations.Size != nil && entry.Bytes != *validations.Size {
+			return nil, 0, errors.New(fmt.Sprintf("Size mismatch: requested %v, actual %v", *validations.Size, entry.Bytes))
+		}
+	}
+
 	return db.Download(title, "", 0)
 }

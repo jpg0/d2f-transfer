@@ -7,7 +7,7 @@ import (
 
 func main() {
 	r := mux.NewRouter()
-//	r.HandleFunc("/transfer", Transfer)
+	r.HandleFunc("/transfer", Transfer)
 	r.HandleFunc("/configure/flickr", ConfigureFlickr)
 	r.HandleFunc("/configure/flickr/callback", StoreFlickrConfiguration)
 	r.HandleFunc("/configure/dropbox", ConfigureDropbox)
