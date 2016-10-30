@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"errors"
 	"fmt"
+	"time"
 )
 
 const FLICKR_OAUTH_KEY string = "5845f87d43f2fa6ca0b328272dbf9395"
@@ -22,8 +23,10 @@ const FLICKR_CALLBACK_URL string = "https://d2f-transfer.appspot.com/configure/f
 func NewFlickrClient(c context.Context)(*flickr.FlickrClient) {
 	client := flickr.NewFlickrClient(FLICKR_OAUTH_KEY, FLICKR_OAUTH_SECRET)
 
+	transferCtx, _ := context.WithDeadline(c, time.Second * 60)
+
 	//override client to work with GAE
-	client.HTTPClient = urlfetch.Client(c)
+	client.HTTPClient = urlfetch.Client(transferCtx)
 
 	return client
 }
