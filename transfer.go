@@ -11,6 +11,7 @@ type TransferRequest struct {
 	Tags    []string
 	IsPublic, IsFamily, IsFriend bool
 	Validations *Validations
+	RecentChange                 bool
 }
 
 type TransferResponse struct {
@@ -25,7 +26,7 @@ func Transfer(w http.ResponseWriter, r *http.Request) {
 
 	json.NewDecoder(r.Body).Decode(transferRequest)
 
-	readCloser, _, err := OpenStreamForFile(transferRequest.Title, transferRequest.Validations, c)
+	readCloser, _, err := OpenStreamForFile(transferRequest.Title, transferRequest.Validations, transferRequest.RecentChange, c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

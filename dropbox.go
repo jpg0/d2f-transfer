@@ -80,7 +80,7 @@ func StoreDropboxConfiguration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func OpenStreamForFile(title string, validations *Validations, c context.Context) (io.ReadCloser, int64, error) {
+func OpenStreamForFile(title string, validations *Validations, recentChange bool, c context.Context) (io.ReadCloser, int64, error) {
 	db, _ := NewDropboxClient(c)
 
 
@@ -94,23 +94,39 @@ func OpenStreamForFile(title string, validations *Validations, c context.Context
 	db.SetAccessToken(token.AccessToken)
 
 	if validations != nil { //we need to validate something
-		entry, err := db.Metadata(title, false, false, "", "", 0)
 
-		if err != nil {
+		err = Validate(db, title, validations)
+
+		if(err != nil && recentChange){ //wait and retry
+			time.Sleep(5 * time.Second)
+			err = Validate(db, title, validations)
+		}
+
+		if (err != nil) {
 			return nil, 0, err
-		}
-
-		requestedTime := time.Time(*validations.Mtime).UTC()
-		expectedTime := time.Time(entry.ClientMtime).UTC()
-
-		if validations.Mtime != nil && !requestedTime.Equal(expectedTime) {
-			return nil, 0, errors.New(fmt.Sprintf("Mtime mismatch: requested %v, actual %v: difference: %v", requestedTime, expectedTime, expectedTime.Sub(requestedTime)))
-		}
-
-		if validations.Size != nil && entry.Bytes != *validations.Size {
-			return nil, 0, errors.New(fmt.Sprintf("Size mismatch: requested %v, actual %v", *validations.Size, entry.Bytes))
 		}
 	}
 
 	return db.Download(title, "", 0)
+}
+
+func Validate(db *dropbox.Dropbox, title string, validations *Validations) (error) {
+	entry, err := db.Metadata(title, false, false, "", "", 0)
+
+	if err != nil {
+		return err
+	}
+
+	requestedTime := time.Time(*validations.Mtime).UTC()
+	expectedTime := time.Time(entry.ClientMtime).UTC()
+
+	if validations.Mtime != nil && !requestedTime.Equal(expectedTime) {
+		return errors.New(fmt.Sprintf("Mtime mismatch: requested %v, actual %v: difference: %v", requestedTime, expectedTime, expectedTime.Sub(requestedTime)))
+	}
+
+	if validations.Size != nil && entry.Bytes != *validations.Size {
+		return errors.New(fmt.Sprintf("Size mismatch: requested %v, actual %v", *validations.Size, entry.Bytes))
+	}
+
+	return nil
 }
