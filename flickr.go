@@ -151,7 +151,7 @@ func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, read
 	params.IsPublic = isPublic
 	params.Tags = tags
 
-	response, err := flickr.UploadReaderWithClient(client, readCloser, title, params, urlfetch.Client(withTimeout(c)))
+	response, err := flickr.UploadReaderWithClient(client, readCloser, title, params, urlfetch.Client(withTimeout(c)), c)
 
 	if err != nil {
 		return nil, err
