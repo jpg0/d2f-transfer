@@ -23,12 +23,15 @@ const FLICKR_CALLBACK_URL string = "https://d2f-transfer.appspot.com/configure/f
 func NewFlickrClient(c context.Context)(*flickr.FlickrClient) {
 	client := flickr.NewFlickrClient(FLICKR_OAUTH_KEY, FLICKR_OAUTH_SECRET)
 
-	transferCtx, _ := context.WithTimeout(c, 1*time.Minute)
-
 	//override client to work with GAE
-	client.HTTPClient = urlfetch.Client(transferCtx)
+	client.HTTPClient = urlfetch.Client(withTimeout(c))
 
 	return client
+}
+
+func withTimeout(c context.Context) context.Context {
+	transferCtx, _ := context.WithTimeout(c, 1*time.Minute)
+	return transferCtx
 }
 
 // Retrieve a request token: this is the first step to get a fully functional
@@ -148,7 +151,7 @@ func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, read
 	params.IsPublic = isPublic
 	params.Tags = tags
 
-	response, err := flickr.UploadReaderWithClient(client, readCloser, title, params, urlfetch.Client(c))
+	response, err := flickr.UploadReaderWithClient(client, readCloser, title, params, urlfetch.Client(withTimeout(c)))
 
 	if err != nil {
 		return nil, err
