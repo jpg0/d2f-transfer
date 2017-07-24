@@ -9,7 +9,7 @@ import (
 type TransferRequest struct {
 	Title   string
 	Tags    []string
-	IsPublic, IsFamily, IsFriend bool
+	IsDefault, IsPublic, IsFamily, IsFriend bool
 	Validations *Validations
 	RecentChange                 bool
 }
@@ -36,6 +36,7 @@ func Transfer(w http.ResponseWriter, r *http.Request) {
 	response, err := Upload(
 		transferRequest.Title,
 		transferRequest.Tags,
+		transferRequest.IsDefault,
 		transferRequest.IsPublic,
 		transferRequest.IsFamily,
 		transferRequest.IsFriend,

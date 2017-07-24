@@ -133,7 +133,7 @@ func StoreFlickrConfiguration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, readCloser io.ReadCloser, c context.Context) (*flickr.UploadResponse, error) {
+func Upload(title string, tags []string, isDefault, isPublic, isFamily, isFriend bool, readCloser io.ReadCloser, c context.Context) (*flickr.UploadResponse, error) {
 	access_token := new(flickr.OAuthToken)
 	err := Load("flickr", "access_token", access_token, c)
 
@@ -146,6 +146,7 @@ func Upload(title string, tags []string, isPublic, isFamily, isFriend bool, read
 	client.OAuthTokenSecret = access_token.OAuthTokenSecret
 
 	params := flickr.NewUploadParams()
+	params.IsDefault = isDefault
 	params.IsFamily = isFamily
 	params.IsFriend = isFriend
 	params.IsPublic = isPublic
